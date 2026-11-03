@@ -1,0 +1,30 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  RawBucket:
+    Type: AWS::S3::Bucket
+  CuratedBucket:
+    Type: AWS::S3::Bucket
+  CleanFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handler.lambda_handler
+      Runtime: python3.12
+      Timeout: 60
+      MemorySize: 512
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:336392948345:layer:AWSSDKPandas-Python312:13
+      Environment:
+        Variables:
+          CURATED_BUCKET: !Ref CuratedBucket
+      Policies:
+        - S3ReadPolicy: {BucketName: !Ref RawBucket}
+        - S3WritePolicy: {BucketName: !Ref CuratedBucket}
+      Events:
+        Upload:
+          Type: S3
+          Properties:
+            Bucket: !Ref RawBucket
+            Events: s3:ObjectCreated:*
+            Filter: {S3Key: {Rules: [{Name: suffix, Value: .csv}]}}
